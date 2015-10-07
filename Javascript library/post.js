@@ -41,22 +41,22 @@
 		};
 
 		var bufferLength = 0;
-		var buffer = undefined;
+		var buffer = 0;
 
-		var imageProperties = undefined;
+		var imageProperties = null;
 
 		this.load = function (image, key) {
-			if (imageProperties !== undefined) {
+			if (imageProperties !== null) {
 				kernel.ccall("destroy", null, [], []);
 
-				imageProperties = undefined;
+				imageProperties = null;
 			}
 
 			var neededBufferLength = Math.floor(image.length * 1.2); // To avoid a realloc if the resulting image is bigger
 
 			if (neededBufferLength > bufferLength) {
 				try {
-					buffer = kernel.ccall("realloc", "number", ["number", "number"], [buffer || 0, neededBufferLength]);
+					buffer = kernel.ccall("realloc", "number", ["number", "number"], [buffer, neededBufferLength]);
 				} catch (exception) {
 					throw cantAllocateMemoryError;
 				}
