@@ -1,7 +1,7 @@
 #define LIBEPH5_MAXIMUM_K 7 // Must be positive integer <= 7
 #define LIBEPH5_CHECK_COLOUR_SPACE(space) ((space) == JCS_YCbCr || (space) == JCS_GRAYSCALE)
-#define LIBEPH5_BLOCK_LENGTH 64 // Must be not 0 and devisable by 8
-#define LIBEPH5_MININIMUM_KEY_LENGTH ARCFOUR_MIN_KEY_SIZE
+#define LIBEPH5_BLOCK_LENGTH 64 // Must be != 0 and devisable by 8
+#define LIBEPH5_MININIMUM_KEY_LENGTH ARCFOUR_MIN_KEY_SIZE // Must be != 0
 #define LIBEPH5_MAXIMUM_KEY_LENGTH ARCFOUR_MAX_KEY_SIZE
 
 typedef char *LibEph5_result;

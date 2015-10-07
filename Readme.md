@@ -3,7 +3,7 @@ Eph5
 
 [DDT](https://github.com/desudesutalk/desudesutalk) version of the [F5](https://code.google.com/p/f5-steganography/) steganography algorithm.
 
-It consists of a [C library](Library), a [native utility](Console line interface) for Linux and a [Javascript library](Javascript library) compiled with [Emscripten](http://kripken.github.io/emscripten-site/).
+It consists of a [C library](Library), a [native program](Console line interface) for Linux and a [Javascript library](Javascript library) compiled with [Emscripten](http://kripken.github.io/emscripten-site/).
 
 See the description in the CLI [documentation](Console line interface/Documentation.md).
 

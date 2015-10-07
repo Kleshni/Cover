@@ -1,7 +1,7 @@
 LibEph5
 =======
 
-The library used by the Eph5 utility. See its documentation.
+The library used by the Eph5 program. See its documentation.
 
 `eph5.h`
 --------
@@ -29,7 +29,7 @@ The image must be in the correct colour space (can be checked with the `LIBEPH5_
 
 Can return `LibEph5_result_OK` or an error message. In that case the context remains unitialized. Errors in the LibJPEG functions are not handled, and `LibEph5_destroy` must be called manually.
 
-The returned error message may be `LibEph5_result_cant_allocate_memory` with correct `errno` set or `LibEph5_result_too_big_image` on machines, where `size_t` is <= 32 bits long. Both errors are constant pointers.
+The returned error message may be `LibEph5_result_cant_allocate_memory` with a correct `errno` set or `LibEph5_result_too_big_image` on machines, where `size_t` is <= 32 bits long. Both errors are constant pointers.
 
 `LibEph5_context.container`
 ---------------------------
@@ -46,7 +46,7 @@ The image dimensions in blocks.
 
 ### `size_t coefficients_count`, `size_t usable_coefficients_count` and `size_t one_coefficients_count`
 
-Counts of the coefficients, the non-zero coefficients and the coefficients with the absolute value of 1.
+Counts of the coefficients, the non-zero AC coefficients and the coefficients with the absolute value of 1.
 
 ### `size_t guaranteed_capacity[LIBEPH5_MAXIMUM_K]` and `size_t maximum_capacity[LIBEPH5_MAXIMUM_K]`
 
@@ -116,6 +116,6 @@ Discards the changes made by `LibEph5_embed` if called before `LibEph5_apply_cha
 extern size_t LibEph5_extract(struct LibEph5_context *context, size_t data_length, uint8_t *data, int k);
 ```
 
-Extracts the data.
+Extracts data.
 
 Returns the number of the extracted bytes <= `data_length`.
