@@ -4,7 +4,6 @@
 			"resultInvalidBlockSize",
 			"resultCantAllocateMemory",
 			"resultTooBigImage",
-			"keyLength",
 			"key",
 			"dataLength",
 			"data",
@@ -68,7 +67,6 @@
 			kernel.setValue(globalPointers.get("data"), buffer, "i32");
 			kernel.HEAPU8.set(image, buffer);
 
-			kernel.setValue(globalPointers.get("keyLength"), key.length, "i32");
 			kernel.HEAPU8.set(key, globalPointers.get("key"));
 
 			var result;

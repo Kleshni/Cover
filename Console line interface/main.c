@@ -18,8 +18,6 @@
 typedef char *result;
 
 static const result result_OK = NULL;
-static const result result_invalid_colour_space = "Invalid colour space";
-static const result result_invalid_block_size = "Invalid block size";
 
 static jmp_buf catch;
 static struct jpeg_error_mgr error_manager;
@@ -38,7 +36,7 @@ static void emit_message(j_common_ptr compressor, int level) {
 	}
 }
 
-#define KEY_LENGTH LIBEPH5_MAXIMUM_KEY_LENGTH
+static const char default_password[] = "desu";
 
 static result prepare_container(
 	struct LibEph5_context *context,
@@ -49,23 +47,20 @@ static result prepare_container(
 ) {
 	// Set key
 
-	uint8_t key_buffer[KEY_LENGTH];
-	size_t key_length = 0;
-	uint8_t *key = NULL;
+	uint8_t key[LIBEPH5_KEY_LENGTH];
 
-	if (password != NULL) {
-		size_t password_length = strlen(password);
-
-		pbkdf2_hmac_sha256(
-			password_length, (uint8_t *) password,
-			1000,
-			password_length, (uint8_t *) password,
-			KEY_LENGTH, key_buffer
-		);
-
-		key_length = KEY_LENGTH;
-		key = key_buffer;
+	if (password == NULL) {
+		password = default_password;
 	}
+
+	size_t password_length = strlen(password);
+
+	pbkdf2_hmac_sha256(
+		password_length, (uint8_t *) password,
+		1000,
+		password_length, (uint8_t *) password,
+		LIBEPH5_KEY_LENGTH, key
+	);
 
 	// Open file
 
@@ -91,28 +86,6 @@ static result prepare_container(
 	jpeg_create_decompress(decompressor);
 	jpeg_stdio_src(decompressor, *file);
 
-	// Check image properties
-
-	jpeg_read_header(decompressor, true);
-
-	if (!LIBEPH5_CHECK_COLOUR_SPACE(decompressor->jpeg_color_space)) {
-		jpeg_destroy_decompress(decompressor);
-		fclose(*file);
-
-		return result_invalid_colour_space;
-	}
-
-	if (decompressor->block_size * decompressor->block_size != LIBEPH5_BLOCK_LENGTH) {
-		jpeg_destroy_decompress(decompressor);
-		fclose(*file);
-
-		return result_invalid_block_size;
-	}
-
-	// Read coefficients
-
-	struct jvirt_barray_control **coefficient_arrays = jpeg_read_coefficients(decompressor);
-
 	// Initialize context
 
 	if (setjmp(catch)) {
@@ -123,12 +96,7 @@ static result prepare_container(
 		return LibJPEG_error_message;
 	}
 
-	LibEph5_result returned = LibEph5_initialize(
-		context,
-		(struct jpeg_common_struct *) decompressor,
-		coefficient_arrays,
-		key_length, key
-	);
+	LibEph5_result returned = LibEph5_initialize(context, decompressor, key);
 
 	if (returned != LibEph5_result_OK) {
 		jpeg_destroy_decompress(decompressor);
@@ -140,10 +108,14 @@ static result prepare_container(
 	return result_OK;
 }
 
-static result close_container(struct LibEph5_context *context, FILE **file) {
+static result close_container(
+	struct LibEph5_context *context,
+	FILE **file,
+	struct jpeg_decompress_struct *decompressor
+) {
 	LibEph5_destroy(context);
 
-	jpeg_destroy_decompress((struct jpeg_decompress_struct *) context->container.compressor);
+	jpeg_destroy_decompress(decompressor);
 
 	if (fclose(*file) != 0) {
 		return strerror(errno);
@@ -174,25 +146,11 @@ static result write_result(struct LibEph5_context *context, const char *file_nam
 		return LibJPEG_error_message;
 	}
 
-	// Initialize compression structure
+	// Write image
 
 	jpeg_create_compress(&compressor);
 	jpeg_stdio_dest(&compressor, file);
-
-	// Write image
-
-	LibEph5_apply_changes(context);
-
-	jpeg_copy_critical_parameters((struct jpeg_decompress_struct *) context->container.compressor, &compressor);
-
-	if (((struct jpeg_decompress_struct *) context->container.compressor)->progressive_mode) {
-		jpeg_simple_progression(&compressor);
-	}
-
-	compressor.optimize_coding = true;
-
-	jpeg_write_coefficients(&compressor, context->container.coefficient_arrays);
-	LibEph5_fix_dummy_blocks(context, &compressor);
+	LibEph5_write(context, &compressor);
 	jpeg_finish_compress(&compressor);
 
 	// Clean up
@@ -235,30 +193,30 @@ static int analyze_main(int argc, char **argv) {
 
 	// Print image properties
 
-	printf("Coefficients: %zu\n", context.container.coefficients_count);
-	printf("Usable coefficients: %zu\n", context.container.usable_coefficients_count);
-	printf("One coefficients: %zu\n", context.container.one_coefficients_count);
+	printf("Coefficients: %zu\n", context.container_properties.coefficients_count);
+	printf("Usable coefficients: %zu\n", context.container_properties.usable_coefficients_count);
+	printf("One coefficients: %zu\n", context.container_properties.one_coefficients_count);
 	printf("Guaranteed capacity in bytes (for different k):\n");
 
 	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K; ++i) {
-		printf("%u. %zu\n", (unsigned int) i + 1, context.container.guaranteed_capacity[i]);
+		printf("%u. %zu\n", (unsigned int) i + 1, context.container_properties.guaranteed_capacity[i]);
 	}
 
 	printf("Maximum capacity:\n");
 
 	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K; ++i) {
-		printf("%u. %zu\n", (unsigned int) i + 1, context.container.maximum_capacity[i]);
+		printf("%u. %zu\n", (unsigned int) i + 1, context.container_properties.maximum_capacity[i]);
 	}
 
 	printf("Expected capacity:\n");
 
 	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K; ++i) {
-		printf("%u. %zu\n", (unsigned int) i + 1, context.container.expected_capacity[i]);
+		printf("%u. %zu\n", (unsigned int) i + 1, context.container_properties.expected_capacity[i]);
 	}
 
 	// Close container
 
-	returned = close_container(&context, &container_file);
+	returned = close_container(&context, &container_file, &decompressor);
 
 	if (returned != result_OK) {
 		error(1, 0, "%s", returned);
@@ -339,11 +297,11 @@ static int embed_main(int argc, char **argv) {
 
 	// Read data
 
-	size_t data_length = context.container.maximum_capacity[(analyze || fit ? LIBEPH5_MAXIMUM_K : k) - 1];
+	size_t data_length = context.container_properties.maximum_capacity[(analyze || fit ? LIBEPH5_MAXIMUM_K : k) - 1];
 	uint8_t *data = malloc(sizeof *data * data_length);
 
 	if (data_length != 0 && data == NULL) {
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "%s", strerror(errno));
 	}
@@ -352,7 +310,7 @@ static int embed_main(int argc, char **argv) {
 
 	if (data_file == NULL) {
 		free(data);
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "%s", strerror(errno));
 	}
@@ -361,14 +319,14 @@ static int embed_main(int argc, char **argv) {
 
 	if (fgetc(data_file) != EOF) {
 		free(data);
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "Container too small");
 	}
 
 	if (ferror(data_file) || fclose(data_file) != 0) {
 		free(data);
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "%s", strerror(errno));
 	}
@@ -377,7 +335,7 @@ static int embed_main(int argc, char **argv) {
 
 	if (analyze) {
 		for (k = LIBEPH5_MAXIMUM_K; k > 1; --k) {
-			if (context.container.expected_capacity[k - 1] >= data_length) {
+			if (context.container_properties.expected_capacity[k - 1] >= data_length) {
 				break;
 			}
 		}
@@ -406,7 +364,7 @@ static int embed_main(int argc, char **argv) {
 	printf("Embedded bytes: %zu\n", embedded_length);
 
 	if (embedded_length < data_length) {
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "Container too small");
 	}
@@ -416,14 +374,14 @@ static int embed_main(int argc, char **argv) {
 	returned = write_result(&context, result_file_name);
 
 	if (returned != result_OK) {
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "%s", returned);
 	}
 
 	// Close container
 
-	returned = close_container(&context, &container_file);
+	returned = close_container(&context, &container_file, &decompressor);
 
 	if (returned != result_OK) {
 		error(1, 0, "%s", returned);
@@ -489,11 +447,11 @@ static int extract_main(int argc, char **argv) {
 
 	// Extract
 
-	size_t data_length = context.container.maximum_capacity[k - 1];
+	size_t data_length = context.container_properties.maximum_capacity[k - 1];
 	uint8_t *data = malloc(sizeof *data * data_length);
 
 	if (data_length != 0 && data == NULL) {
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "%s", strerror(errno));
 	}
@@ -507,7 +465,7 @@ static int extract_main(int argc, char **argv) {
 	FILE *data_file = fopen(data_file_name, "wb");
 
 	if (data_file == NULL) {
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "%s", strerror(errno));
 	}
@@ -515,14 +473,14 @@ static int extract_main(int argc, char **argv) {
 	fwrite(data, sizeof *data, data_length, data_file);
 
 	if (ferror(data_file) || fclose(data_file) != 0) {
-		close_container(&context, &container_file);
+		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "%s", strerror(errno));
 	}
 
 	// Close container
 
-	returned = close_container(&context, &container_file);
+	returned = close_container(&context, &container_file, &decompressor);
 
 	if (returned != result_OK) {
 		error(1, 0, "%s", returned);

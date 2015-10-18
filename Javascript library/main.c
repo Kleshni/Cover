@@ -15,8 +15,6 @@
 typedef char *result;
 
 const result result_OK = NULL;
-const result result_invalid_colour_space = "Invalid colour space";
-const result result_invalid_block_size = "Invalid block size";
 
 static jmp_buf catch;
 static struct jpeg_error_mgr error_manager;
@@ -40,8 +38,7 @@ int main(int argc, char **argv) {
 	return EXIT_SUCCESS;
 }
 
-size_t key_length;
-uint8_t key[LIBEPH5_MAXIMUM_KEY_LENGTH];
+uint8_t key[LIBEPH5_KEY_LENGTH];
 
 size_t data_length;
 uint8_t *data;
@@ -61,7 +58,6 @@ void *globals[17] = {
 	NULL,
 	NULL,
 	NULL,
-	&key_length,
 	key,
 	&data_length,
 	&data,
@@ -77,8 +73,8 @@ void *globals[17] = {
 
 void *export_globals(void) {
 	globals[0] = result_OK;
-	globals[1] = result_invalid_colour_space;
-	globals[2] = result_invalid_block_size;
+	globals[1] = LibEph5_result_invalid_colour_space;
+	globals[2] = LibEph5_result_invalid_block_size;
 	globals[3] = LibEph5_result_cant_allocate_memory;
 	globals[4] = LibEph5_result_too_big_image;
 
@@ -105,26 +101,6 @@ result load(void) {
 	jpeg_create_decompress(&decompressor);
 	jpeg_mem_src(&decompressor, (unsigned char *) data, data_length);
 
-	// Check image properties
-
-	jpeg_read_header(&decompressor, true);
-
-	if (!LIBEPH5_CHECK_COLOUR_SPACE(decompressor.jpeg_color_space)) {
-		jpeg_destroy_decompress(&decompressor);
-
-		return result_invalid_colour_space;
-	}
-
-	if (decompressor.block_size * decompressor.block_size != LIBEPH5_BLOCK_LENGTH) {
-		jpeg_destroy_decompress(&decompressor);
-
-		return result_invalid_block_size;
-	}
-
-	// Read coefficients
-
-	struct jvirt_barray_control **coefficient_arrays = jpeg_read_coefficients(&decompressor);
-
 	// Initialize context
 
 	if (setjmp(catch)) {
@@ -134,12 +110,7 @@ result load(void) {
 		return LibJPEG_error_message;
 	}
 
-	LibEph5_result returned = LibEph5_initialize(
-		&context,
-		(struct jpeg_common_struct *) &decompressor,
-		coefficient_arrays,
-		key_length, key
-	);
+	LibEph5_result returned = LibEph5_initialize(&context, &decompressor, key);
 
 	if (returned != LibEph5_result_OK) {
 		jpeg_destroy_decompress(&decompressor);
@@ -149,14 +120,14 @@ result load(void) {
 
 	// Share container properties
 
-	horizontal_blocks_count = context.container.horizontal_blocks_count;
-	vertical_blocks_count = context.container.vertical_blocks_count;
-	coefficients_count = context.container.coefficients_count;
-	usable_coefficients_count = context.container.usable_coefficients_count;
-	one_coefficients_count = context.container.one_coefficients_count;
-	guaranteed_capacity = context.container.guaranteed_capacity;
-	maximum_capacity = context.container.maximum_capacity;
-	expected_capacity = context.container.expected_capacity;
+	horizontal_blocks_count = context.container_properties.horizontal_blocks_count;
+	vertical_blocks_count = context.container_properties.vertical_blocks_count;
+	coefficients_count = context.container_properties.coefficients_count;
+	usable_coefficients_count = context.container_properties.usable_coefficients_count;
+	one_coefficients_count = context.container_properties.one_coefficients_count;
+	guaranteed_capacity = context.container_properties.guaranteed_capacity;
+	maximum_capacity = context.container_properties.maximum_capacity;
+	expected_capacity = context.container_properties.expected_capacity;
 
 	return result_OK;
 }
@@ -180,21 +151,7 @@ result save(void) {
 
 	jpeg_create_compress(&compressor);
 	jpeg_mem_dest(&compressor, &data, &new_data_length);
-
-	// Write image
-
-	LibEph5_apply_changes(&context);
-
-	jpeg_copy_critical_parameters((struct jpeg_decompress_struct *) context.container.compressor, &compressor);
-
-	if (((struct jpeg_decompress_struct *) context.container.compressor)->progressive_mode) {
-		jpeg_simple_progression(&compressor);
-	}
-
-	compressor.optimize_coding = true;
-
-	jpeg_write_coefficients(&compressor, context.container.coefficient_arrays);
-	LibEph5_fix_dummy_blocks(&context, &compressor);
+	LibEph5_write(&context, &compressor);
 	jpeg_finish_compress(&compressor);
 
 	data_length = new_data_length;

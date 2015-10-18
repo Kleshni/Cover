@@ -14,31 +14,23 @@ The main header file. Requires `stdint.h`, `stddef.h`, `jpeglib.h` and `nettle/a
 ``` C
 extern LibEph5_result LibEph5_initialize(
 	struct LibEph5_context *context,
-	struct jpeg_common_struct *compressor,
-	struct jvirt_barray_control **coefficient_arrays,
-	size_t key_length,
+	struct jpeg_decompress_struct *decompressor,
 	const uint8_t *key
 );
 ```
 
 Initializes the context.
 
-Requires the unitialized context, a LibJPEG compressor/decompressor structure with an opened image, the result of `jpeg_read_coefficients` on this compressor, length of a key (from `LIBEPH5_MINIMUM_KEY_LENGTH` to `LIBEPH5_MAXIMUM_KEY_LENGTH` or 0) and the key. If the length = 0, the default key is used (PBKDF 2 of "desu", parameters can be found in the CLI sources).
+Requires the unitialized context, a LibJPEG decompressor structure with an opened image and a key of `LIBEPH5_KEY_LENGTH` bytes.
 
-The image must be in the correct colour space (can be checked with the `LIBEPH5_CHECK_COLOUR_SPACE(space)` macro, which uses its argument twice) and have the rigth block size = `LIBEPH5_BLOCK_LENGTH`.
+Can return `LibEph5_result_OK` or an error message. In that case the context remains unitialized. Errors from LibJPEG are not handled in this function, so `LibEph5_destroy` must be called manually.
 
-Can return `LibEph5_result_OK` or an error message. In that case the context remains unitialized. Errors in the LibJPEG functions are not handled, and `LibEph5_destroy` must be called manually.
+The returned error message may be `LibEph5_result_cant_allocate_memory` with a correct `errno` set, `LibEph5_result_too_big_image` on machines, where `size_t` is <= 32 bits long, or one of `LibEph5_result_invalid_colour_space` and `LibEph5_result_invalid_block_size`. All errors are constant pointers.
 
-The returned error message may be `LibEph5_result_cant_allocate_memory` with a correct `errno` set or `LibEph5_result_too_big_image` on machines, where `size_t` is <= 32 bits long. Both errors are constant pointers.
-
-`LibEph5_context.container`
----------------------------
+`LibEph5_context.container_properties`
+--------------------------------------
 
 A public member of the `LibEph5_context` structure.
-
-### `struct jpeg_common_struct *compressor` and `struct jvirt_barray_control **coefficient_arrays`
-
-The second and the third arguments of the initializer.
 
 ### `JDIMENSION horizontal_blocks_count` and `JDIMENSION vertical_blocks_count`
 
@@ -58,27 +50,18 @@ The arrays are non-increasing.
 
 Expectation of the image capacity. Is >= the minimum and <= the maximum estimations.
 
-`LibEph5_apply_changes`
------------------------
+`LibEph5_write`
+---------------
 
 ``` C
-extern void LibEph5_apply_changes(struct LibEph5_context *context);
+extern void LibEph5_write(struct LibEph5_context *context, struct jpeg_compress_struct *compressor);
 ```
 
-Modifies the coefficients array to apply the changes planned by `LibEph5_embed`. LibJPEG errors are not handeled, and they can break the image.
+Writes the resulting image using the compressor structure. The decompressor passed to `LibEph5_initialize` must remain unmodified until call to this function.
 
-Coefficients passed to `LibEph5_initialize` must remain unchanged until call to this function.
+LibJPEG errors are not handled, and they can break the whole process.
 
-The only supported actions after this function are `LibEph5_fix_dummy_blocks` and `LibEph5_destroy`.
-
-`LibEph5_fix_dummy_blocks`
---------------------------
-
-``` C
-extern void LibEph5_fix_dummy_blocks(struct LibEph5_context *context, struct jpeg_compress_struct *compressor);
-```
-
-This function must be called right after a call to `jpeg_write_coefficients`. Expected to be removed in next versions.
+The only supported action after this function is `LibEph5_destroy`.
 
 `LibEph5_destroy`
 -----------------
@@ -96,7 +79,7 @@ Destroys the context.
 extern size_t LibEph5_embed(struct LibEph5_context *context, size_t data_length, const uint8_t *data, int k);
 ```
 
-Embeds the data into the image. `k` must be from 1 to `LIBEPH5_MAXIMUM_K`. `LibEph5_apply_changes` should be called after the embedding.
+Embeds the data into the image. `k` must be from 1 to `LIBEPH5_MAXIMUM_K`. `LibEph5_write` should be called after the embedding.
 
 Returns the number of the embedded bytes.
 
@@ -107,7 +90,7 @@ Returns the number of the embedded bytes.
 extern void LibEph5_reset(struct LibEph5_context *context);
 ```
 
-Discards the changes made by `LibEph5_embed` if called before `LibEph5_apply_changes`.
+Discards the changes made by `LibEph5_embed` if called before `LibEph5_write`.
 
 `LibEph5_extract`
 -----------------

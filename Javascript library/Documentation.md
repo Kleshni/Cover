@@ -12,7 +12,7 @@ Some methods can throw errors. In that case, the only supported action is to cal
 
 ### `load(image, key)`
 
-Loads the image, which is an instance of `Uint8Array`. The minimum and maximum key lengths can be found in the C library documentation.
+Loads the image, which is an instance of `Uint8Array`. The key length can be found in the C library documentation.
 
 Returns an object with the container properties.
 
@@ -24,7 +24,7 @@ Returns the image as a `Uint8Array`. The only usable method after this function 
 
 ### `embed(data, k)`
 
-Embeds the data (`Uint8Array`), using the specified k value (an integer from 1 to 7).
+Embeds the data (`Uint8Array`), using the specified k value (an integer from 1 to `LIBEPH5_MAXIMUM_K` from the C library).
 
 Returns the number of the embedded bytes.
 
@@ -45,7 +45,7 @@ Its methods can throw errors.
 
 ### `embed(data, image, key)`
 
-Embeds the data into the image using the key. The minimum and maximum key lengths can be found in the C library documentation.
+Embeds the data into the image using the key. The key length can be found in the C library documentation.
 
 Returns an object with the container properties, the used k value, the number of the embedded bytes and the resulting image.
 
