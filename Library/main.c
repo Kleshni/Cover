@@ -510,21 +510,11 @@ void LibEph5_extract(struct LibEph5_context *context, uint8_t **data) {
 	int byte = 0;
 	int bit_position = 0;
 
-	size_t extracted_lengths[LIBEPH5_MAXIMUM_K - 1];
-	int bytes[LIBEPH5_MAXIMUM_K - 1];
-	int bit_positions[LIBEPH5_MAXIMUM_K - 1];
-	int bits[LIBEPH5_MAXIMUM_K - 1];
-	int bit_masks[LIBEPH5_MAXIMUM_K - 1];
-	int ns[LIBEPH5_MAXIMUM_K - 1];
-
-	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K - 1; ++i) {
-		extracted_lengths[i] = 0;
-		bytes[i] = 0;
-		bit_positions[i] = 0;
-		bits[i] = 0;
-		bit_masks[i] = 1;
-		ns[i] = (1 << i + 2) - 1;
-	}
+	size_t extracted_lengths[LIBEPH5_MAXIMUM_K - 1] = {0, 0, 0, 0, 0, 0};
+	int bytes[LIBEPH5_MAXIMUM_K - 1] = {0, 0, 0, 0, 0, 0};
+	int bit_positions[LIBEPH5_MAXIMUM_K - 1] = {0, 0, 0, 0, 0, 0};
+	int bits[LIBEPH5_MAXIMUM_K - 1] = {0, 0, 0, 0, 0, 0};
+	int bit_masks[LIBEPH5_MAXIMUM_K - 1] = {1, 1, 1, 1, 1, 1};
 
 	for (size_t i = 0; i < coefficients_count; ++i) {
 		size_t index = permutation[i];
@@ -546,28 +536,109 @@ void LibEph5_extract(struct LibEph5_context *context, uint8_t **data) {
 		}
 
 		if (payload == 1) {
-			for (size_t j = 0; j < LIBEPH5_MAXIMUM_K - 1; ++j) {
-				bits[j] ^= bit_masks[j];
-			}
+				bits[0] ^= bit_masks[0];
+				bits[1] ^= bit_masks[1];
+				bits[2] ^= bit_masks[2];
+				bits[3] ^= bit_masks[3];
+				bits[4] ^= bit_masks[4];
+				bits[5] ^= bit_masks[5];
 		}
 
-		for (size_t j = 0; j < LIBEPH5_MAXIMUM_K - 1; ++j) {
-			++bit_masks[j];
+		++bit_masks[0];
+		++bit_masks[1];
+		++bit_masks[2];
+		++bit_masks[3];
+		++bit_masks[4];
+		++bit_masks[5];
 
-			if (bit_masks[j] == ns[j] + 1) {
-				bytes[j] |= bits[j] << bit_positions[j];
-				bit_positions[j] += j + 2;
+		if (bit_masks[0] == 4) {
+			bytes[0] |= bits[0] << bit_positions[0];
+			bit_positions[0] += 0 + 2;
 
-				if (bit_positions[j] >= 8) {
-					data[j + 1][extracted_lengths[j]] = bytes[j] & 0xff ^ keystream[extracted_lengths[j]];
-					bytes[j] >>= 8;
-					bit_positions[j] -= 8;
-					++extracted_lengths[j];
-				}
-
-				bits[j] = 0;
-				bit_masks[j] = 1;
+			if (bit_positions[0] >= 8) {
+				data[0 + 1][extracted_lengths[0]] = bytes[0] & 0xff ^ keystream[extracted_lengths[0]];
+				bytes[0] >>= 8;
+				bit_positions[0] -= 8;
+				++extracted_lengths[0];
 			}
+
+			bits[0] = 0;
+			bit_masks[0] = 1;
+		}
+
+		if (bit_masks[1] == 8) {
+			bytes[1] |= bits[1] << bit_positions[1];
+			bit_positions[1] += 1 + 2;
+
+			if (bit_positions[1] >= 8) {
+				data[1 + 1][extracted_lengths[1]] = bytes[1] & 0xff ^ keystream[extracted_lengths[1]];
+				bytes[1] >>= 8;
+				bit_positions[1] -= 8;
+				++extracted_lengths[1];
+			}
+
+			bits[1] = 0;
+			bit_masks[1] = 1;
+		}
+
+		if (bit_masks[2] == 16) {
+			bytes[2] |= bits[2] << bit_positions[2];
+			bit_positions[2] += 2 + 2;
+
+			if (bit_positions[2] >= 8) {
+				data[2 + 1][extracted_lengths[2]] = bytes[2] & 0xff ^ keystream[extracted_lengths[2]];
+				bytes[2] >>= 8;
+				bit_positions[2] -= 8;
+				++extracted_lengths[2];
+			}
+
+			bits[2] = 0;
+			bit_masks[2] = 1;
+		}
+
+		if (bit_masks[3] == 32) {
+			bytes[3] |= bits[3] << bit_positions[3];
+			bit_positions[3] += 3 + 2;
+
+			if (bit_positions[3] >= 8) {
+				data[3 + 1][extracted_lengths[3]] = bytes[3] & 0xff ^ keystream[extracted_lengths[3]];
+				bytes[3] >>= 8;
+				bit_positions[3] -= 8;
+				++extracted_lengths[3];
+			}
+
+			bits[3] = 0;
+			bit_masks[3] = 1;
+		}
+
+		if (bit_masks[4] == 64) {
+			bytes[4] |= bits[4] << bit_positions[4];
+			bit_positions[4] += 4 + 2;
+
+			if (bit_positions[4] >= 8) {
+				data[4 + 1][extracted_lengths[4]] = bytes[4] & 0xff ^ keystream[extracted_lengths[4]];
+				bytes[4] >>= 8;
+				bit_positions[4] -= 8;
+				++extracted_lengths[4];
+			}
+
+			bits[4] = 0;
+			bit_masks[4] = 1;
+		}
+
+		if (bit_masks[5] == 128) {
+			bytes[5] |= bits[5] << bit_positions[5];
+			bit_positions[5] += 5 + 2;
+
+			if (bit_positions[5] >= 8) {
+				data[5 + 1][extracted_lengths[5]] = bytes[5] & 0xff ^ keystream[extracted_lengths[5]];
+				bytes[5] >>= 8;
+				bit_positions[5] -= 8;
+				++extracted_lengths[5];
+			}
+
+			bits[5] = 0;
+			bit_masks[5] = 1;
 		}
 	}
 }
