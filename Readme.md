@@ -22,7 +22,7 @@ Build the library and then make:
 CPATH=../Library/ LIBRARY_PATH=../Library/ CFLAGS=-O3 LDFLAGS=-O3 make
 ```
 
-It requires GNU extensions `getopt_long` and `error`.
+It requires functions `getopt_long` and `error`, which are GNU extensions.
 
 ### Javascript library
 
