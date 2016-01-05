@@ -546,27 +546,27 @@ void LibEph5_extract(struct LibEph5_context *context, uint8_t **data) {
 		}
 
 		if (payload == 1) {
-			for (size_t i = 0; i < LIBEPH5_MAXIMUM_K - 1; ++i) {
-				bits[i] ^= bit_masks[i];
+			for (size_t j = 0; j < LIBEPH5_MAXIMUM_K - 1; ++j) {
+				bits[j] ^= bit_masks[j];
 			}
 		}
 
-		for (size_t i = 0; i < LIBEPH5_MAXIMUM_K - 1; ++i) {
-			++bit_masks[i];
+		for (size_t j = 0; j < LIBEPH5_MAXIMUM_K - 1; ++j) {
+			++bit_masks[j];
 
-			if (bit_masks[i] == ns[i] + 1) {
-				bytes[i] |= bits[i] << bit_positions[i];
-				bit_positions[i] += i + 2;
+			if (bit_masks[j] == ns[j] + 1) {
+				bytes[j] |= bits[j] << bit_positions[j];
+				bit_positions[j] += j + 2;
 
-				if (bit_positions[i] >= 8) {
-					data[i + 1][extracted_lengths[i]] = bytes[i] & 0xff ^ keystream[extracted_lengths[i]];
-					bytes[i] >>= 8;
-					bit_positions[i] -= 8;
-					++extracted_lengths[i];
+				if (bit_positions[j] >= 8) {
+					data[j + 1][extracted_lengths[j]] = bytes[j] & 0xff ^ keystream[extracted_lengths[j]];
+					bytes[j] >>= 8;
+					bit_positions[j] -= 8;
+					++extracted_lengths[j];
 				}
 
-				bits[i] = 0;
-				bit_masks[i] = 1;
+				bits[j] = 0;
+				bit_masks[j] = 1;
 			}
 		}
 	}
