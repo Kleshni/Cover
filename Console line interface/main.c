@@ -214,6 +214,12 @@ static int analyze_main(int argc, char **argv) {
 		printf("%u. %zu\n", (unsigned int) i + 1, context.container_properties.expected_capacity[i]);
 	}
 
+	printf("Extractable length:\n");
+
+	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K; ++i) {
+		printf("%u. %zu\n", (unsigned int) i + 1, context.container_properties.extractable_length[i]);
+	}
+
 	// Close container
 
 	returned = close_container(&context, &container_file, &decompressor);
@@ -391,15 +397,13 @@ static int embed_main(int argc, char **argv) {
 }
 
 static int extract_main(int argc, char **argv) {
-	int k = LIBEPH5_MAXIMUM_K;
 	const char *password = NULL;
 
 	// Parse command line
 
-	const char *short_options = "k:p:";
+	const char *short_options = "p:";
 
 	struct option long_options[] = {
-		{"k", required_argument, NULL, 'k'},
 		{"password", required_argument, NULL, 'p'},
 		{0, 0, 0, 0}
 	};
@@ -410,12 +414,6 @@ static int extract_main(int argc, char **argv) {
 
 	while ((option = getopt_long(argc, argv, short_options, long_options, NULL)) != -1) {
 		switch (option) {
-			case 'k': {
-				if (sscanf(optarg, "%i", &k) != 1 || k < 1 || k > LIBEPH5_MAXIMUM_K) {
-					error(1, 0, "Invalid k");
-				}
-			} break;
-
 			case 'p': {
 				password = optarg;
 			} break;
@@ -426,12 +424,16 @@ static int extract_main(int argc, char **argv) {
 		}
 	}
 
-	if (argc - optind != 2) {
+	if (argc - optind != 8) {
 		error(1, 0, "Missing or redundant file names");
 	}
 
 	const char *container_file_name = argv[optind];
-	const char *data_file_name = argv[optind + 1];
+	const char *data_file_names[LIBEPH5_MAXIMUM_K];
+
+	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K; ++i) {
+		data_file_names[i] = argv[optind + 1 + i];
+	}
 
 	// Open container
 
@@ -447,36 +449,51 @@ static int extract_main(int argc, char **argv) {
 
 	// Extract
 
-	size_t data_length = context.container_properties.maximum_capacity[k - 1];
-	uint8_t *data = malloc(sizeof *data * data_length);
+	size_t data_buffer_length = 0;
 
-	if (data_length != 0 && data == NULL) {
+	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K; ++i) {
+		data_buffer_length += context.container_properties.extractable_length[i];
+	}
+
+	uint8_t *data_buffer = malloc(sizeof *data_buffer * data_buffer_length);
+
+	if (data_buffer_length != 0 && data_buffer == NULL) {
 		close_container(&context, &container_file, &decompressor);
 
 		error(1, 0, "%s", strerror(errno));
 	}
 
-	size_t extracted_length = LibEph5_extract(&context, data_length, data, k);
+	uint8_t *data[LIBEPH5_MAXIMUM_K] = {data_buffer};
 
-	printf("Extracted bytes: %zu\n", extracted_length);
+	for (size_t i = 1; i < LIBEPH5_MAXIMUM_K; ++i) {
+		data[i] = data[i - 1] + context.container_properties.extractable_length[i - 1];
+	}
+
+	LibEph5_extract(&context, data);
 
 	// Write data
 
-	FILE *data_file = fopen(data_file_name, "wb");
+	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K; ++i) {
+		FILE *data_file = fopen(data_file_names[i], "wb");
 
-	if (data_file == NULL) {
-		close_container(&context, &container_file, &decompressor);
+		if (data_file == NULL) {
+			free(data_buffer);
+			close_container(&context, &container_file, &decompressor);
 
-		error(1, 0, "%s", strerror(errno));
+			error(1, 0, "%s", strerror(errno));
+		}
+
+		fwrite(data[i], sizeof *data[i], context.container_properties.extractable_length[i], data_file);
+
+		if (ferror(data_file) || fclose(data_file) != 0) {
+			free(data_buffer);
+			close_container(&context, &container_file, &decompressor);
+
+			error(1, 0, "%s", strerror(errno));
+		}
 	}
 
-	fwrite(data, sizeof *data, data_length, data_file);
-
-	if (ferror(data_file) || fclose(data_file) != 0) {
-		close_container(&context, &container_file, &decompressor);
-
-		error(1, 0, "%s", strerror(errno));
-	}
+	free(data_buffer);
 
 	// Close container
 

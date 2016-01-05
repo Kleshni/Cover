@@ -50,6 +50,10 @@ The arrays are non-increasing.
 
 Expectation of the image capacity. Is >= the minimum and <= the maximum estimations.
 
+### `size_t extractable_length[LIBEPH5_MAXIMUM_K];`
+
+The lengths of the data, which can be extracted from the image.
+
 `LibEph5_write`
 ---------------
 
@@ -96,9 +100,7 @@ Discards the changes made by `LibEph5_embed` if called before `LibEph5_write`.
 -----------------
 
 ``` C
-extern size_t LibEph5_extract(struct LibEph5_context *context, size_t data_length, uint8_t *data, int k);
+extern void LibEph5_extract(struct LibEph5_context *context, uint8_t **data);
 ```
 
-Extracts data.
-
-Returns the number of the extracted bytes <= `data_length`.
+Extracts the data. The `data` argument must point to an array of `LIBEPH5_MAXIMUM_K` pointers to buffers of sufficient sizes.

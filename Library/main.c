@@ -217,6 +217,8 @@ LibEph5_result LibEph5_initialize(
 	context->container_properties.maximum_capacity[0] = usable_coefficients_count / 8;
 	context->container_properties.expected_capacity[0] = (usable_coefficients_count - one_coefficients_count / 2) / 8;
 
+	context->container_properties.extractable_length[0] = context->container_properties.maximum_capacity[0];
+
 	for (size_t i = 1; i < LIBEPH5_MAXIMUM_K; ++i) {
 		int k = i + 1;
 		int n = (1 << k) - 1;
@@ -255,6 +257,8 @@ LibEph5_result LibEph5_initialize(
 		context->container_properties.guaranteed_capacity[i] = guaranteed_capacity;
 		context->container_properties.maximum_capacity[i] = maximum_capacity;
 		context->container_properties.expected_capacity[i] = expected_capacity;
+
+		context->container_properties.extractable_length[i] = context->container_properties.maximum_capacity[i];
 	}
 
 	// Generate permutation and keystream
@@ -494,7 +498,7 @@ void LibEph5_reset(struct LibEph5_context *context) {
 	memset(context->modified_coefficients, 0, context->container_properties.coefficients_count / 8);
 }
 
-size_t LibEph5_extract(struct LibEph5_context *context, size_t data_length, uint8_t *data, int k) {
+void LibEph5_extract(struct LibEph5_context *context, uint8_t **data) {
 	size_t coefficients_count = context->container_properties.coefficients_count;
 
 	uint32_t *permutation = context->permutation;
@@ -503,76 +507,67 @@ size_t LibEph5_extract(struct LibEph5_context *context, size_t data_length, uint
 	uint8_t *coefficients_payload = context->coefficients_payload;
 
 	size_t extracted_length = 0;
-	size_t coefficients_index = 0;
+	int byte = 0;
+	int bit_position = 0;
 
-	if (k == 1) {
-		for (; extracted_length < data_length; ++extracted_length) {
-			int byte = 0;
+	size_t extracted_lengths[LIBEPH5_MAXIMUM_K - 1];
+	int bytes[LIBEPH5_MAXIMUM_K - 1];
+	int bit_positions[LIBEPH5_MAXIMUM_K - 1];
+	int bits[LIBEPH5_MAXIMUM_K - 1];
+	int bit_masks[LIBEPH5_MAXIMUM_K - 1];
+	int ns[LIBEPH5_MAXIMUM_K - 1];
 
-			for (size_t i = 0; i < 8; ++i) {
-				bool bit;
-
-				while (true) {
-					if (coefficients_index == coefficients_count) {
-						goto end;
-					}
-
-					size_t index = permutation[coefficients_index++];
-
-					if (usable_coefficients[index >> 3] >> (index & 0x7) & 1) {
-						bit = coefficients_payload[index >> 3] >> (index & 0x7) & 1;
-
-						break;
-					}
-				}
-
-				byte |= bit << i;
-			}
-
-			data[extracted_length] = byte ^ keystream[extracted_length];
-		}
-	} else {
-		int n = (1 << k) - 1;
-
-		int byte = 0;
-		int l = 0;
-
-		while (extracted_length < data_length) {
-			int bits = 0;
-
-			for (int i = 0; i < n; ++i) {
-				size_t index;
-
-				while (true) {
-					if (coefficients_index == coefficients_count) {
-						goto end;
-					}
-
-					index = permutation[coefficients_index++];
-
-					if (usable_coefficients[index >> 3] >> (index & 0x7) & 1) {
-						break;
-					}
-				}
-
-				if (coefficients_payload[index >> 3] >> (index & 0x7) & 1) {
-					bits ^= i + 1;
-				}
-			}
-
-			byte |= bits << l;
-			l += k;
-
-			if (l >= 8) {
-				data[extracted_length] = byte & 0xff ^ keystream[extracted_length];
-				byte >>= 8;
-				l -= 8;
-				++extracted_length;
-			}
-		}
+	for (size_t i = 0; i < LIBEPH5_MAXIMUM_K - 1; ++i) {
+		extracted_lengths[i] = 0;
+		bytes[i] = 0;
+		bit_positions[i] = 0;
+		bits[i] = 0;
+		bit_masks[i] = 1;
+		ns[i] = (1 << i + 2) - 1;
 	}
 
-	end: {
-		return extracted_length;
+	for (size_t i = 0; i < coefficients_count; ++i) {
+		size_t index = permutation[i];
+
+		if (!(usable_coefficients[index >> 3] >> (index & 0x7) & 1)) {
+			continue;
+		}
+
+		int payload = coefficients_payload[index >> 3] >> (index & 0x7) & 1;
+
+		byte |= payload << bit_position;
+		++bit_position;
+
+		if (bit_position == 8) {
+			data[0][extracted_length] = byte ^ keystream[extracted_length];
+			byte = 0;
+			bit_position = 0;
+			++extracted_length;
+		}
+
+		if (payload == 1) {
+			for (size_t i = 0; i < LIBEPH5_MAXIMUM_K - 1; ++i) {
+				bits[i] ^= bit_masks[i];
+			}
+		}
+
+		for (size_t i = 0; i < LIBEPH5_MAXIMUM_K - 1; ++i) {
+			++bit_masks[i];
+
+			if (bit_masks[i] == ns[i] + 1) {
+				bytes[i] |= bits[i] << bit_positions[i];
+				bit_positions[i] += i + 2;
+
+				if (bit_positions[i] >= 8) {
+					data[i + 1][extracted_lengths[i]] = bytes[i] & 0xff ^ keystream[extracted_lengths[i]];
+					bytes[i] >>= 8;
+					bit_positions[i] -= 8;
+					++extracted_lengths[i];
+				}
+
+				bits[i] = 0;
+				bit_masks[i] = 1;
+			}
+		}
 	}
 }

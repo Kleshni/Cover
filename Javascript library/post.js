@@ -5,8 +5,8 @@
 			"resultCantAllocateMemory",
 			"resultTooBigImage",
 			"key",
+			"dataBuffer",
 			"dataLength",
-			"data",
 			"horizontalBlocksCount",
 			"verticalBlocksCount",
 			"coefficientsCount",
@@ -14,7 +14,8 @@
 			"oneCoefficientsCount",
 			"guaranteedCapacity",
 			"maximumCapacity",
-			"expectedCapacity"
+			"expectedCapacity",
+			"extractableLength"
 		];
 
 		var globalPointersArray = kernel.ccall("export_globals", "number", [], []);
@@ -44,15 +45,7 @@
 
 		var imageProperties = null;
 
-		this.load = function (image, key) {
-			if (imageProperties !== null) {
-				kernel.ccall("destroy", null, [], []);
-
-				imageProperties = null;
-			}
-
-			var neededBufferLength = Math.floor(image.length * 1.2); // To avoid a realloc if the resulting image is bigger
-
+		var expandBuffer = function (neededBufferLength) {
 			if (neededBufferLength > bufferLength) {
 				try {
 					buffer = kernel.ccall("realloc", "number", ["number", "number"], [buffer, neededBufferLength]);
@@ -62,9 +55,19 @@
 
 				bufferLength = neededBufferLength;
 			}
+		};
 
+		this.load = function (image, key) {
+			if (imageProperties !== null) {
+				kernel.ccall("destroy", null, [], []);
+
+				imageProperties = null;
+			}
+
+			expandBuffer(Math.floor(image.length * 1.2)); // To avoid a realloc if the resulting image is bigger
+
+			kernel.setValue(globalPointers.get("dataBuffer"), buffer, "i32");
 			kernel.setValue(globalPointers.get("dataLength"), image.length, "i32");
-			kernel.setValue(globalPointers.get("data"), buffer, "i32");
 			kernel.HEAPU8.set(image, buffer);
 
 			kernel.HEAPU8.set(key, globalPointers.get("key"));
@@ -81,7 +84,7 @@
 				throw getError(result);
 			}
 
-			var unpackCapacity = function (pointer) {
+			var unpackArrayOfK = function (pointer) {
 				var array = kernel.getValue(pointer, "i32");
 
 				var result = new Map()
@@ -99,9 +102,10 @@
 				"coefficientsCount": kernel.getValue(globalPointers.get("coefficientsCount"), "i32"),
 				"usableCoefficientsCount": kernel.getValue(globalPointers.get("usableCoefficientsCount"), "i32"),
 				"oneCoefficientsCount": kernel.getValue(globalPointers.get("oneCoefficientsCount"), "i32"),
-				"guaranteedCapacity": unpackCapacity(globalPointers.get("guaranteedCapacity")),
-				"maximumCapacity": unpackCapacity(globalPointers.get("maximumCapacity")),
-				"expectedCapacity": unpackCapacity(globalPointers.get("expectedCapacity"))
+				"guaranteedCapacity": unpackArrayOfK(globalPointers.get("guaranteedCapacity")),
+				"maximumCapacity": unpackArrayOfK(globalPointers.get("maximumCapacity")),
+				"expectedCapacity": unpackArrayOfK(globalPointers.get("expectedCapacity")),
+				"extractableLength": unpackArrayOfK(globalPointers.get("extractableLength"))
 			};
 
 			return imageProperties;
@@ -122,8 +126,8 @@
 				throw getError(result);
 			}
 
+			buffer = kernel.getValue(globalPointers.get("dataBuffer"), "i32");
 			bufferLength = kernel.getValue(globalPointers.get("dataLength"), "i32");
-			buffer = kernel.getValue(globalPointers.get("data"), "i32");
 
 			return new Uint8Array(kernel.HEAPU8.subarray(buffer, buffer + bufferLength));
 		};
@@ -131,18 +135,10 @@
 		this.embed = function (data, k) {
 			var neededBufferLength = Math.min(data.length, imageProperties.maximumCapacity.get(k));
 
-			if (neededBufferLength > bufferLength) {
-				try {
-					buffer = kernel.ccall("realloc", "number", ["number", "number"], [buffer, neededBufferLength]);
-				} catch (exception) {
-					throw cantAllocateMemoryError;
-				}
+			expandBuffer(neededBufferLength);
 
-				bufferLength = neededBufferLength;
-			}
-
+			kernel.setValue(globalPointers.get("dataBuffer"), buffer, "i32");
 			kernel.setValue(globalPointers.get("dataLength"), neededBufferLength, "i32");
-			kernel.setValue(globalPointers.get("data"), buffer, "i32");
 			kernel.HEAPU8.set(data.subarray(0, neededBufferLength), buffer);
 
 			return kernel.ccall("embed", "number", ["number"], [k]);
@@ -152,25 +148,29 @@
 			kernel.ccall("reset", null, [], []);
 		};
 
-		this.extract = function (k) {
-			var maximumLength = imageProperties.maximumCapacity.get(k);
+		this.extract = function () {
+			var neededBufferLength = 0;
 
-			if (maximumLength > bufferLength) {
-				try {
-					buffer = kernel.ccall("realloc", "number", ["number", "number"], [buffer, maximumLength]);
-				} catch (exception) {
-					throw cantAllocateMemoryError;
-				}
-
-				bufferLength = maximumLength;
+			for (var k = 1; k <= 7; ++k) {
+				neededBufferLength += imageProperties.extractableLength.get(k);
 			}
 
-			kernel.setValue(globalPointers.get("dataLength"), maximumLength, "i32");
-			kernel.setValue(globalPointers.get("data"), buffer, "i32");
+			expandBuffer(neededBufferLength);
 
-			var dataLength = kernel.ccall("extract", "number", ["number"], [k]);
+			kernel.setValue(globalPointers.get("dataBuffer"), buffer, "i32");
+			kernel.ccall("extract", null, [], []);
 
-			return new Uint8Array(kernel.HEAPU8.subarray(buffer, buffer + dataLength));
+			var result = new Map();
+			var data = buffer;
+
+			for (var k = 1; k <= 7; ++k) {
+				var dataLength = imageProperties.extractableLength.get(k);
+
+				result.set(k, new Uint8Array(kernel.HEAPU8.subarray(data, data + dataLength)));
+				data += dataLength;
+			}
+
+			return result;
 		};
 	};
 
@@ -232,13 +232,7 @@
 		this.extract = expandMemory(function (image, key) {
 			raw.load(image, key);
 
-			var result = new Map();
-
-			for (var k = 1; k <= 7; ++k) {
-				result.set(k, raw.extract(k));
-			}
-
-			return result;
+			return raw.extract();
 		});
 	};
 

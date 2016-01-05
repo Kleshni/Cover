@@ -39,8 +39,9 @@ int main(int argc, char **argv) {
 
 uint8_t key[LIBEPH5_KEY_LENGTH];
 
+uint8_t *data_buffer;
+
 size_t data_length;
-uint8_t *data;
 
 size_t horizontal_blocks_count;
 size_t vertical_blocks_count;
@@ -50,16 +51,17 @@ size_t one_coefficients_count;
 size_t *guaranteed_capacity;
 size_t *maximum_capacity;
 size_t *expected_capacity;
+size_t *extractable_length;
 
-void *globals[17] = {
+void *globals[18] = {
 	NULL,
 	NULL,
 	NULL,
 	NULL,
 	NULL,
 	key,
+	&data_buffer,
 	&data_length,
-	&data,
 	&horizontal_blocks_count,
 	&vertical_blocks_count,
 	&coefficients_count,
@@ -67,7 +69,8 @@ void *globals[17] = {
 	&one_coefficients_count,
 	&guaranteed_capacity,
 	&maximum_capacity,
-	&expected_capacity
+	&expected_capacity,
+	&extractable_length
 };
 
 void *export_globals(void) {
@@ -98,7 +101,7 @@ result load(void) {
 	// Open container
 
 	jpeg_create_decompress(&decompressor);
-	jpeg_mem_src(&decompressor, (unsigned char *) data, data_length);
+	jpeg_mem_src(&decompressor, (unsigned char *) data_buffer, data_length);
 
 	// Initialize context
 
@@ -127,6 +130,7 @@ result load(void) {
 	guaranteed_capacity = context.container_properties.guaranteed_capacity;
 	maximum_capacity = context.container_properties.maximum_capacity;
 	expected_capacity = context.container_properties.expected_capacity;
+	extractable_length = context.container_properties.extractable_length;
 
 	return result_OK;
 }
@@ -149,7 +153,7 @@ result save(void) {
 	unsigned long new_data_length = data_length;
 
 	jpeg_create_compress(&compressor);
-	jpeg_mem_dest(&compressor, &data, &new_data_length);
+	jpeg_mem_dest(&compressor, &data_buffer, &new_data_length);
 	LibEph5_write(&context, &compressor);
 	jpeg_finish_compress(&compressor);
 
@@ -169,13 +173,19 @@ void destroy(void) {
 }
 
 size_t embed(int k) {
-	return LibEph5_embed(&context, data_length, data, k);
+	return LibEph5_embed(&context, data_length, data_buffer, k);
 }
 
 void reset(void) {
 	LibEph5_reset(&context);
 }
 
-size_t extract(int k) {
-	return LibEph5_extract(&context, data_length, data, k);
+void extract(void) {
+	uint8_t *data[LIBEPH5_MAXIMUM_K] = {data_buffer};
+
+	for (size_t i = 1; i < LIBEPH5_MAXIMUM_K; ++i) {
+		data[i] = data[i - 1] + context.container_properties.extractable_length[i - 1];
+	}
+
+	LibEph5_extract(&context, data);
 }

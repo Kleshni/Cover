@@ -32,10 +32,11 @@ Extract data
 ------------
 
 ``` Shell
-eph5 extract <container> <data>
+eph5 extract <container> <data for k = 1> ... <data for k = 7>
 ```
+
+Extracts the data from the container, using all seven k values.
 
 Options:
 
-- `--k <k>`, `-k <k>`.
 - `--password <password>`, `-p <password>`.

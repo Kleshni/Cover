@@ -26,6 +26,8 @@ struct LibEph5_context {
 		size_t guaranteed_capacity[LIBEPH5_MAXIMUM_K];
 		size_t maximum_capacity[LIBEPH5_MAXIMUM_K];
 		size_t expected_capacity[LIBEPH5_MAXIMUM_K];
+
+		size_t extractable_length[LIBEPH5_MAXIMUM_K];
 	} container_properties;
 
 	uint32_t *permutation;
@@ -47,4 +49,4 @@ extern void LibEph5_destroy(struct LibEph5_context *context);
 
 extern size_t LibEph5_embed(struct LibEph5_context *context, size_t data_length, const uint8_t *data, int k);
 extern void LibEph5_reset(struct LibEph5_context *context);
-extern size_t LibEph5_extract(struct LibEph5_context *context, size_t data_length, uint8_t *data, int k);
+extern void LibEph5_extract(struct LibEph5_context *context, uint8_t **data);
