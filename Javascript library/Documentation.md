@@ -34,7 +34,7 @@ Undoes the changes made by the `embed` method.
 
 ### `extract(k)`
 
-Returns the data extracted from the image.
+Extracts the data from the image.
 
 `Eph5.Simple(memory)`
 ---------------------

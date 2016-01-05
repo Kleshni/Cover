@@ -9,7 +9,6 @@
 
 #include <jpeglib.h>
 #include <nettle/arcfour.h>
-#include <nettle/pbkdf2.h>
 #include <eph5.h>
 
 typedef char *result;
