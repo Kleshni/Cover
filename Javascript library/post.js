@@ -222,7 +222,7 @@
 			}
 
 			return {
-				"contsainerProperties": properties,
+				"containerProperties": properties,
 				"k": k,
 				"embeddedLength": embeddedLength,
 				"image": raw.save()
