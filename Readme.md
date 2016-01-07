@@ -54,6 +54,8 @@ And make the Javascript library: `CFLAGS=-O3 LDFLAGS=-O3 make`.
 
 You can replace `-O3` in the `CFLAGS` of LibJPEG and Nettle with `-Oz` to get a smaller code. `sed -i s/\\u00/\\x/g eph5.js` after the compilation also reduces the code size.
 
+The resulting code can contain null characters. If it causes problems, replace them with escape sequences: `sed -i s/\\x00/\\\\x00/g eph5.js`.
+
 Links
 -----
 
