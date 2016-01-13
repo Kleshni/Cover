@@ -12,7 +12,7 @@ The main header file. Requires `stdint.h`, `stddef.h`, `jpeglib.h` and `nettle/a
 --------------------
 
 ``` C
-extern LibEph5_result LibEph5_initialize(
+LibEph5_result LibEph5_initialize(
 	struct LibEph5_context *context,
 	struct jpeg_decompress_struct *decompressor,
 	const uint8_t *key
@@ -32,25 +32,50 @@ The returned error message may be `LibEph5_result_cant_allocate_memory` with a c
 
 A public member of the `LibEph5_context` structure.
 
-### `JDIMENSION horizontal_blocks_count` and `JDIMENSION vertical_blocks_count`
+### `horizontal_blocks_count` and `vertical_blocks_count`
+
+``` C
+JDIMENSION horizontal_blocks_count;
+JDIMENSION vertical_blocks_count;
+
+```
 
 The image dimensions in blocks.
 
-### `size_t coefficients_count`, `size_t usable_coefficients_count` and `size_t one_coefficients_count`
+### `coefficients_count`, `usable_coefficients_count` and `one_coefficients_count`
+
+``` C
+size_t coefficients_count;
+size_t usable_coefficients_count;
+size_t one_coefficients_count;
+```
 
 Counts of the coefficients, the non-zero AC coefficients and the coefficients with the absolute value of 1.
 
-### `size_t guaranteed_capacity[LIBEPH5_MAXIMUM_K]` and `size_t maximum_capacity[LIBEPH5_MAXIMUM_K]`
+### `guaranteed_capacity` and `maximum_capacity`
+
+``` C
+size_t guaranteed_capacity[LIBEPH5_MAXIMUM_K];
+size_t maximum_capacity[LIBEPH5_MAXIMUM_K];
+```
 
 The minimum and the maximum possible image capacity for different k values. Indexes = k - 1.
 
 The arrays are non-increasing.
 
-### `size_t expected_capacity[LIBEPH5_MAXIMUM_K];`
+### `expected_capacity`
+
+``` C
+size_t expected_capacity[LIBEPH5_MAXIMUM_K];
+```
 
 Expectation of the image capacity. Is >= the minimum and <= the maximum estimations.
 
-### `size_t extractable_length[LIBEPH5_MAXIMUM_K];`
+### `extractable_length`
+
+``` C
+size_t extractable_length[LIBEPH5_MAXIMUM_K];
+```
 
 The lengths of the data, which can be extracted from the image.
 
@@ -58,7 +83,7 @@ The lengths of the data, which can be extracted from the image.
 ---------------
 
 ``` C
-extern void LibEph5_write(struct LibEph5_context *context, struct jpeg_compress_struct *compressor);
+void LibEph5_write(struct LibEph5_context *context, struct jpeg_compress_struct *compressor);
 ```
 
 Writes the resulting image using the compressor structure. The decompressor passed to `LibEph5_initialize` must remain unmodified until call to this function.
@@ -71,7 +96,7 @@ The only supported action after this function is `LibEph5_destroy`.
 -----------------
 
 ``` C
-extern void LibEph5_destroy(struct LibEph5_context *context);
+void LibEph5_destroy(struct LibEph5_context *context);
 ```
 
 Destroys the context.
@@ -80,7 +105,7 @@ Destroys the context.
 ---------------
 
 ``` C
-extern size_t LibEph5_embed(struct LibEph5_context *context, size_t data_length, const uint8_t *data, int k);
+size_t LibEph5_embed(struct LibEph5_context *context, size_t data_length, const uint8_t *data, int k);
 ```
 
 Embeds the data into the image. `k` must be from 1 to `LIBEPH5_MAXIMUM_K`. `LibEph5_write` should be called after the embedding.
@@ -91,7 +116,7 @@ Returns the number of the embedded bytes.
 ---------------
 
 ``` C
-extern void LibEph5_reset(struct LibEph5_context *context);
+void LibEph5_reset(struct LibEph5_context *context);
 ```
 
 Discards the changes made by `LibEph5_embed` if called before `LibEph5_write`.
@@ -100,7 +125,7 @@ Discards the changes made by `LibEph5_embed` if called before `LibEph5_write`.
 -----------------
 
 ``` C
-extern void LibEph5_extract(struct LibEph5_context *context, uint8_t **data);
+void LibEph5_extract(struct LibEph5_context *context, uint8_t **data);
 ```
 
 Extracts the data. The `data` argument must point to an array of `LIBEPH5_MAXIMUM_K` pointers to buffers of sufficient sizes.
