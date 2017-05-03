@@ -1,0 +1,4 @@
+{
+	global: Cover_*;
+	local: *;
+};

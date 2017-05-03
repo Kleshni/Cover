@@ -1,66 +1,40 @@
-Eph5
-====
+Cover 1.0.0
+===========
 
-[DDT](https://github.com/desudesutalk/desudesutalk) version of the [F5](https://code.google.com/p/f5-steganography/) steganography algorithm.
+C library and console line program for JPEG steganography. Implements two algorithms:
 
-It consists of a [C library](Library), a [native program](Console line interface) for Linux and a [Javascript library](Javascript library) compiled with [Emscripten](http://kripken.github.io/emscripten-site/).
+- [DDT](https://github.com/desudesutalk/desudesutalk) version of [F5](https://code.google.com/p/f5-steganography/).
 
-See the description in the CLI [documentation](Console line interface/Documentation.md).
+- [Rang](https://github.com/Kleshni/Cover/Rang%20specification).
+
+The program also supports extraction and replacement of raw DCT coefficients.
+
+The library requires [LibJPEG 8, 9a or 9b](http://www.ijg.org/) and [Nettle](http://www.lysator.liu.se/~nisse/nettle/). The console line interface also needs [Imlib2](https://docs.enlightenment.org/api/imlib2/html/index.html) and [GnuTLS](https://gnutls.org/) and depends on the GNU LibC extensions.
+
+[CMake](https://cmake.org/) is used as a build system and [Doxygen](https://www.stack.nl/~dimitri/doxygen/) is needed for documentation generation.
 
 Build
 -----
 
-### Library
+Build targets `library` and `tool`. On Linux: run `cmake .` to generate a makefile, and then `make library tool`.
 
-Install [LibJPEG 8 or 9a](http://www.ijg.org/) and [Nettle 3](http://www.lysator.liu.se/~nisse/nettle/) and run `CFLAGS=-O3 make` in the library directory.
+Documentation
+-------------
 
-### Console line interface
+See the console line program [documentation](tool/Documentation.md).
 
-Build the library and then make:
+The library documentation can be found in the public [header files](include). Build target `documentation` to compile HTML.
 
-``` Shell
-CPATH=../Library/ LIBRARY_PATH=../Library/ CFLAGS=-O3 LDFLAGS=-O3 make
-```
+Install
+-------
 
-It requires the functions `getopt_long` and `error`, which are GNU extensions.
-
-### Javascript library
-
-Get the latest Emscripten (not from the Ubuntu repository) and the sources of [LibJPEG 9a](http://www.ijg.org/files/jpegsrc.v9a.tar.gz) and [Nettle 3](https://ftp.gnu.org/gnu/nettle/).
-
-Place the sources into the `Javascript library` folder and rename the directories to `jpeg` and `nettle` (i. e. without version numbers). Then build LibJPEG in its directory:
-
-``` Shell
-emconfigure ./configure CFLAGS=-O3
-cat ../jmorecfg.h >> jmorecfg.h
-emmake make
-```
-
-Build Nettle:
-
-``` Shell
-emconfigure ./configure --build=x86
-emmake make CFLAGS=-O3
-```
-
-Build LibEph5 in the `eph5` directory:
-
-``` Shell
-make clean
-CPATH=..:../jpeg CFLAGS=-O3 emmake make
-```
-
-And make the Javascript library: `CFLAGS=-O3 LDFLAGS=-O3 make`.
-
-You can replace `-O3` in the `CFLAGS` of LibJPEG and Nettle with `-Oz` to get a smaller code. `sed -i s/\\u00/\\x/g eph5.js` after the compilation also reduces the code size.
-
-The resulting code can contain null characters. If it causes problems, replace them with escape sequences: `sed -i s/\\x00/\\\\x00/g eph5.js`.
+Execute target `install/strip`.
 
 Links
 -----
 
-* [Source code](https://github.com/Kleshni/Eph5/archive/master.zip).
-* [Git repository](https://github.com/Kleshni/Eph5.git).
-* [Issue tracker](https://github.com/Kleshni/Eph5/issues).
+* [Source code](https://github.com/Kleshni/Cover/archive/master.zip).
+* [Git repository](https://github.com/Kleshni/Cover.git).
+* [Issue tracker](https://github.com/Kleshni/Cover/issues).
 * Bitmessage: BM-FHMGLusCyAEjonpwAYdxzfcyBszP.
-* Mail: [biryuzovye.kleshni@yandex.ru](mailto:biryuzovye.kleshni@yandex.ru).
+* Mail: [kleshni@protonmail.ch](mailto:kleshni@protonmail.ch).
