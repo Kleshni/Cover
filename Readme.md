@@ -5,7 +5,7 @@ C library and console line program for JPEG steganography. Implements two algori
 
 - [DDT](https://github.com/desudesutalk/desudesutalk) version of [F5](https://code.google.com/p/f5-steganography/).
 
-- [Rang](https://github.com/Kleshni/Cover/Rang%20specification).
+- [Rang](Rang%20specification/index.md).
 
 The program also supports extraction and replacement of raw DCT coefficients.
 
