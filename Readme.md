@@ -16,7 +16,7 @@ The library requires [LibJPEG 8, 9a or 9b](http://www.ijg.org/) and [Nettle](htt
 Build
 -----
 
-Build targets `library` and `tool`. On Linux: run `cmake .` to generate a makefile, and then `make library tool`.
+Build the targets `library` and `tool`. On Linux: run `cmake .` to generate a makefile, and then `make library tool`.
 
 Documentation
 -------------
@@ -28,7 +28,7 @@ The library documentation can be found in the public [header files](include). Bu
 Install
 -------
 
-Execute target `install/strip`.
+Execute the target `install/strip`.
 
 Links
 -----

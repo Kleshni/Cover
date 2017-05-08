@@ -22,7 +22,7 @@ set_target_properties(
 	VERSION ${PROJECT_VERSION}
 	SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
 	LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/library/main.map
-	LINK_FLAGS -Wl,-version-script=${CMAKE_CURRENT_SOURCE_DIR}/library/main.map
+	LINK_FLAGS -Wl,-version-script="${CMAKE_CURRENT_SOURCE_DIR}/library/main.map"
 )
 
 target_link_libraries(library jpeg nettle)
